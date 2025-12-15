@@ -3,9 +3,7 @@ from model.rifugio import Rifugio
 
 
 class DAO:
-    """
-    Implementare tutte le funzioni necessarie a interrogare il database.
-    """
+
     @staticmethod
     def get_rifugi():
         conn = DBConnect.get_connection()

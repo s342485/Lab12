@@ -79,7 +79,6 @@ class Model:
         if difficolta == "difficile":
             return 2
 
-    """Implementare la parte di ricerca del cammino minimo"""
     def get_percorso_minimo(self, soglia):
         distanza_minima = float("inf") #lo mette a infinito
         percorso_minimo = []
