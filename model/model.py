@@ -1,5 +1,6 @@
 import networkx as nx
 from database.dao import DAO
+from pprint import pprint
 
 class Model:
     def __init__(self):
@@ -7,6 +8,8 @@ class Model:
         self.G = nx.Graph()
         self._nodes = None
         self._edges = None
+        self._lista_rifugi =[]
+        self._dizionario_rifugi = {}
 
     def build_weighted_graph(self, year: int):
         """
@@ -33,7 +36,6 @@ class Model:
         for nodo in list(self.G.nodes()):  #RuntimeError: dictionary changed size during iteration "cosa vuol dire sta cosa" : vuol dire che non posso modificare il valore del dizionario e convinee trasformarlo in una lista statica prima di iterarci sopra perchè esso è in continuo movimento e cambiamento
             if self.G.degree(nodo) < 1:
                 self.G.remove_node(nodo)
-
         return self.G
 
     def get_edges_weight_min_max(self):
@@ -77,6 +79,102 @@ class Model:
         if difficolta == "difficile":
             return 2
 
-
     """Implementare la parte di ricerca del cammino minimo"""
-    # TODo
+    def get_percorso_minimo(self, soglia):
+        distanza_minima = float("inf") #lo mette a infinito
+        percorso_minimo = []
+        G_filtrato = nx.Graph()
+
+        #creo un sottografo con soli archi peso > soglia
+        for u,v,d in self.G.edges(data=True):
+            if d["weight"] > soglia:
+                G_filtrato.add_edge(u,v, weight=d["weight"])
+
+        #se non ha archi ritorna una lista vuota
+        if G_filtrato.number_of_edges() == 0:
+            return []
+
+        #per ogni nodo come sorgente
+        for sorgente in G_filtrato.nodes():
+            distanze, percorsi = nx.single_source_dijkstra(G_filtrato,sorgente, weight="weight")
+            #percorsi = nodoX : lista di nodi per raggiungere nodoX
+            for destinazione in distanze: #per ogni nodo del grafo destinazione = nodo
+
+                #scarta se stesso
+                if destinazione == sorgente:
+                    continue
+
+                percorso = percorsi[destinazione] #lista di nodi di destinazione
+
+                #scarto quelli che hanno meno di tre nodi
+                if len(percorso) < 3:
+                    continue
+
+                distanza = distanze[destinazione] #recupera il peso
+
+                if distanza < distanza_minima:
+                    distanza_minima = distanza
+                    percorso_minimo = percorso
+
+
+        return percorso_minimo
+
+        #output = [
+        #
+        #          Rifugio(id_rifugio=11, nome='Rifugio Kappa', localita='Monte K', altitudine=1900, capienza=35, aperto=1),
+        #          Rifugio(id_rifugio=20, nome='Rifugio Tiglio', localita='Valle dei Tigli', altitudine=1500, capienza=25, aperto=1),
+        #          Rifugio(id_rifugio=24, nome='Rifugio Alpestre', localita='Monti Alpestri', altitudine=1800, capienza=35, aperto=1)
+        #
+        #          ]   cammino minimo composto da 3 rifugi
+
+    def get_percorso_minimo_ricorsivo(self, soglia):
+
+        # costruisco il grafo filtrato, stessa cosa di prima
+        self.G_filtrato = nx.Graph()
+        for u, v, d in self.G.edges(data=True):
+            if d["weight"] > soglia:
+                self.G_filtrato.add_edge(u, v, weight=d["weight"])
+
+        if self.G_filtrato.number_of_edges() == 0:
+            return []
+
+        # variabili globali della ricerca
+        self.min_corrente = float("inf")
+        self.risultato = []
+
+        # provo ogni nodo come partenza
+        for nodo in self.G_filtrato.nodes():
+            self.ricorsione([nodo], 0)
+        return self.risultato
+
+    def ricorsione (self,cammino,peso):
+
+        #cammino = lista dei nodi visitati finora, al primo giro è il nodo di partenza, il primo che c'è nella lista nodi
+        #peso = somma dei pesi degli archi percorsi fino ad adesso, al primo giro è 0 ovviamente
+        """
+        Sono in un certo nodo (l’ultimo del cammino).
+        Provo ad andare in tutti i nodi vicini che non ho ancora visitato.
+        Ogni volta aggiorno il peso e verifico se ho trovato un cammino migliore.
+        """
+
+        if len(cammino)>=3: #almeno tre nodi
+
+            if peso < self.min_corrente:
+                self.min_corrente = peso # variabile che memorizza il minor peso trovato fino ad ora
+                self.risultato = cammino.copy()  # .copy crea una nuova lista con gli stessi elementi ma indipendente dalla lista originale
+
+
+        ultimo = cammino[-1]
+        for vicino in self.G_filtrato.neighbors(ultimo):
+            if vicino not in cammino:
+                w = self.G_filtrato[ultimo][vicino]['weight']
+
+                if peso + w >= self.min_corrente:
+                    continue  #Se anche aggiungendo questo arco il costo diventa già maggiore (o uguale) del miglior cammino che ho trovato finora, allora NON ha senso continuare su questo ramo
+
+                cammino.append(vicino)
+                self.ricorsione(cammino, peso + w)
+                cammino.pop() #backtracking = rimuove l'ultimo elemento della lista cammino
+
+
+
